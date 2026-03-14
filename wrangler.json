@@ -1,0 +1,58 @@
+/**
+ * For more details on how to configure Wrangler, refer to:
+ * https://developers.cloudflare.com/workers/wrangler/configuration/
+ */
+{
+	"$schema": "node_modules/wrangler/config-schema.json",
+	"name": "typing-speed-race",
+	"main": "./src/worker/index.ts",
+	"compatibility_date": "2025-10-08",
+	"compatibility_flags": [
+		"nodejs_compat"
+	],
+	"observability": {
+		"enabled": true
+	},
+	"upload_source_maps": true,
+	"assets": {
+		"directory": "./dist/client",
+		"not_found_handling": "single-page-application"
+	},
+	"d1_databases": [
+		{
+			"binding": "D1",
+			"database_name": "typing-speed-race",
+			"database_id": "a65c86d4-07cb-4f86-a1a6-92f852b206bc"
+		}
+	],
+	"durable_objects": {
+		"bindings": [
+			{
+				"name": "LEADERBOARD_DO",
+				"class_name": "LeaderboardDO"
+			},
+			{
+				"name": "GAME_SESSION_DO",
+				"class_name": "GameSessionDO"
+			},
+			{
+				"name": "DUEL_ROOM_DO",
+				"class_name": "DuelRoomDO"
+			}
+		]
+	},
+	"migrations": [
+		{
+			"tag": "v1",
+			"new_sqlite_classes": ["LeaderboardDO"]
+		},
+		{
+			"tag": "v2",
+			"new_sqlite_classes": ["GameSessionDO"]
+		},
+		{
+			"tag": "v3",
+			"new_sqlite_classes": ["DuelRoomDO"]
+		}
+	]
+}

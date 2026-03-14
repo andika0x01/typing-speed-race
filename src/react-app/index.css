@@ -1,0 +1,47 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-heading: 'Geist', 'Inter', system-ui, sans-serif;
+  --color-cream: #F5F0E8;
+  --color-ink: #0D0D0D;
+  --color-ink-dark: #1A1A1A;
+  --color-nav: #333333;
+  --color-accent: #EDE8DC;
+}
+
+*,
+::before,
+::after {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-weight: 400;
+}
+
+html,
+body,
+#root {
+  background-color: #F5F0E8;
+  color: #0D0D0D;
+  min-height: 100%;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Geist', 'Inter', system-ui, sans-serif;
+  font-weight: 800;
+}
+
+button {
+  font-family: 'Inter', system-ui, sans-serif;
+  letter-spacing: -0.02em;
+}
+
+nav a,
+nav span {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-weight: 500;
+  color: #333333;
+}
+
+@utility font-geist {
+  font-family: 'Geist', 'Inter', system-ui, sans-serif;
+}
