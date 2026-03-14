@@ -22,7 +22,7 @@
 		{
 			"binding": "D1",
 			"database_name": "typing-speed-race",
-			"database_id": "a65c86d4-07cb-4f86-a1a6-92f852b206bc"
+			"database_id": "c8ce7827-fe44-4a01-bb1d-7d3928715c97"
 		}
 	],
 	"durable_objects": {
@@ -44,15 +44,21 @@
 	"migrations": [
 		{
 			"tag": "v1",
-			"new_sqlite_classes": ["LeaderboardDO"]
+			"new_sqlite_classes": [
+				"LeaderboardDO"
+			]
 		},
 		{
 			"tag": "v2",
-			"new_sqlite_classes": ["GameSessionDO"]
+			"new_sqlite_classes": [
+				"GameSessionDO"
+			]
 		},
 		{
 			"tag": "v3",
-			"new_sqlite_classes": ["DuelRoomDO"]
+			"new_sqlite_classes": [
+				"DuelRoomDO"
+			]
 		}
 	]
 }
