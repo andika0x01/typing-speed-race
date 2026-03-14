@@ -14,6 +14,7 @@ function validateUsername(val: string): string | null {
 export default function UsernameModal({ onClaimed }: UsernameModalProps) {
   const [value, setValue] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
+  const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -26,19 +27,40 @@ export default function UsernameModal({ onClaimed }: UsernameModalProps) {
     setErrorMsg("");
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     const err = validateUsername(value);
     if (err) {
       setErrorMsg(err);
       return;
     }
-    // No server registration — username is stored in localStorage by useSession
-    // Scores are written to D1 by the GameSessionDO on each game finish.
-    onClaimed(value, value); // token = username (session key)
+
+    setLoading(true);
+    setErrorMsg("");
+
+    try {
+      const token = crypto.randomUUID();
+      const res = await fetch("/api/auth/register", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username: value, token }),
+      });
+
+      if (res.ok) {
+        onClaimed(value, token);
+      } else if (res.status === 409) {
+        setErrorMsg("Username sudah dipakai di browser lain");
+      } else {
+        setErrorMsg("Terjadi kesalahan, coba lagi");
+      }
+    } catch {
+      setErrorMsg("Tidak bisa terhubung ke server");
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const canSubmit = value.length >= 2 && value.length <= 20;
+  const canSubmit = value.length >= 2 && value.length <= 20 && !loading;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#F5F0E8]">
@@ -68,7 +90,8 @@ export default function UsernameModal({ onClaimed }: UsernameModalProps) {
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck={false}
-              className="w-full bg-[#EDE8DC] text-[#0D0D0D] font-medium text-base px-4 py-3 rounded-xl border border-transparent focus:outline-none focus:border-[#1A1A1A] transition-all placeholder:text-[#0D0D0D]/30"
+              disabled={loading}
+              className="w-full bg-[#EDE8DC] text-[#0D0D0D] font-medium text-base px-4 py-3 rounded-xl border border-transparent focus:outline-none focus:border-[#1A1A1A] transition-all placeholder:text-[#0D0D0D]/30 disabled:opacity-60"
             />
             {errorMsg && (
               <p className="text-xs font-medium px-1 text-red-500">{errorMsg}</p>
@@ -78,9 +101,16 @@ export default function UsernameModal({ onClaimed }: UsernameModalProps) {
           <button
             type="submit"
             disabled={!canSubmit}
-            className="bg-[#1A1A1A] text-white px-6 py-3 rounded-xl font-semibold text-sm tracking-tight hover:bg-[#333333] transition-all duration-200 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed"
+            className="bg-[#1A1A1A] text-white px-6 py-3 rounded-xl font-semibold text-sm tracking-tight hover:bg-[#333333] transition-all duration-200 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            Klaim Username
+            {loading ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                Mengecek…
+              </>
+            ) : (
+              "Klaim Username"
+            )}
           </button>
         </form>
 

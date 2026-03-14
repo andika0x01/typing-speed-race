@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import { Routes, Route } from "react-router-dom";
 import { useSession } from "./hooks/useSession";
 import NavBar from "./components/NavBar";
@@ -8,7 +9,23 @@ import AboutPage from "./pages/AboutPage";
 import DuelPage from "./pages/DuelPage";
 
 export default function App() {
-  const { username, login } = useSession();
+  const { username, token, login, logout } = useSession();
+  const [verified, setVerified] = useState(!username);
+
+  useEffect(() => {
+    if (!username || !token) {
+      setVerified(true);
+      return;
+    }
+    fetch(`/api/auth/verify?username=${encodeURIComponent(username)}&token=${encodeURIComponent(token)}`)
+      .then((res) => {
+        if (!res.ok) logout();
+      })
+      .catch(() => { /* network error — keep session, will fail on next action */ })
+      .finally(() => setVerified(true));
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  if (!verified) return null;
 
   return (
     <>

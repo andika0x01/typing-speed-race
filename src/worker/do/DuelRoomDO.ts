@@ -27,6 +27,7 @@ interface RoomState {
   startTime: number | null;
   host: PlayerState;
   guest: PlayerState | null;
+  rematchRequestedBy: string | null;
 }
 
 type ClientMsg =
@@ -34,6 +35,8 @@ type ClientMsg =
   | { type: "join"; username: string; roomId: string }
   | { type: "start" }
   | { type: "word"; typed: string; wordIndex: number }
+  | { type: "rematch_request" }
+  | { type: "rematch_response"; accept: boolean }
   | { type: "ping" };
 
 const TAG_HOST = "host";
@@ -116,6 +119,7 @@ export class DuelRoomDO extends DurableObject<Env> {
           startedAt: null,
         },
         guest: null,
+        rematchRequestedBy: null,
       };
       await this.ctx.storage.put("state", state);
       this.send(ws, { type: "created", roomId });
@@ -218,6 +222,66 @@ export class DuelRoomDO extends DurableObject<Env> {
           wordsTyped: player.wordsTyped,
         });
       }
+      return;
+    }
+
+    if (msg.type === "rematch_request") {
+      const state = await this.ctx.storage.get<RoomState>("state");
+      if (!state || state.phase !== "finished") return;
+
+      const requester = isHost ? state.host.username : state.guest?.username;
+      if (!requester) return;
+
+      const opponentWs = isHost ? this.getWsByTag(TAG_GUEST) : this.getWsByTag(TAG_HOST);
+      if (!opponentWs) {
+        this.send(ws, { type: "rematch_declined" });
+        return;
+      }
+
+      state.rematchRequestedBy = requester;
+      await this.ctx.storage.put("state", state);
+      this.send(opponentWs, { type: "rematch_request", from: requester });
+      return;
+    }
+
+    if (msg.type === "rematch_response") {
+      const state = await this.ctx.storage.get<RoomState>("state");
+      if (!state || state.phase !== "finished" || !state.rematchRequestedBy) return;
+
+      if (!msg.accept) {
+        state.rematchRequestedBy = null;
+        await this.ctx.storage.put("state", state);
+        this.broadcastBoth({ type: "rematch_declined" });
+        return;
+      }
+
+      const newWords = generateWords(WORD_COUNT);
+      const emptyPlayer = (p: PlayerState): PlayerState => ({
+        ...p,
+        correctChars: 0,
+        incorrectChars: 0,
+        totalTyped: 0,
+        wordsTyped: 0,
+        nextExpectedIndex: 0,
+        finished: false,
+        startedAt: null,
+      });
+
+      state.phase = "countdown";
+      state.words = newWords;
+      state.startTime = null;
+      state.rematchRequestedBy = null;
+      state.host = emptyPlayer(state.host);
+      if (state.guest) state.guest = emptyPlayer(state.guest);
+      await this.ctx.storage.put("state", state);
+
+      const hostWs = this.getWsByTag(TAG_HOST);
+      const guestWs = this.getWsByTag(TAG_GUEST);
+      const readyPayload = { type: "ready", words: newWords, duration: DUEL_DURATION };
+      if (hostWs) this.send(hostWs, { ...readyPayload, opponent: state.guest?.username ?? "", role: "host" });
+      if (guestWs) this.send(guestWs, { ...readyPayload, opponent: state.host.username, role: "guest" });
+
+      await this.ctx.storage.setAlarm(Date.now() + 3000);
       return;
     }
   }

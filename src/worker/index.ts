@@ -29,6 +29,42 @@ app.get("/api/ws/game", async (c) => {
   return stub.fetch(c.req.raw);
 });
 
+app.post("/api/auth/register", async (c) => {
+  const body = await c.req.json<{ username: string; token: string }>();
+  const { username, token } = body;
+  if (!username || !token) return c.json({ error: "Missing fields" }, 400);
+
+  const existing = await c.env.D1.prepare(
+    "SELECT token FROM users WHERE username = ?"
+  ).bind(username).first<{ token: string }>();
+
+  if (!existing) {
+    await c.env.D1.prepare(
+      "INSERT INTO users (username, token) VALUES (?, ?)"
+    ).bind(username, token).run();
+    return c.json({ ok: true }, 201);
+  }
+
+  if (existing.token === token) {
+    return c.json({ ok: true }, 200);
+  }
+
+  return c.json({ error: "taken" }, 409);
+});
+
+app.get("/api/auth/verify", async (c) => {
+  const username = c.req.query("username");
+  const token = c.req.query("token");
+  if (!username || !token) return c.json({ error: "Missing fields" }, 400);
+
+  const row = await c.env.D1.prepare(
+    "SELECT token FROM users WHERE username = ?"
+  ).bind(username).first<{ token: string }>();
+
+  if (row && row.token === token) return c.json({ ok: true });
+  return c.json({ error: "invalid" }, 401);
+});
+
 app.get("/api/duel/room", async (c) => {
   const roomId = Array.from(crypto.getRandomValues(new Uint8Array(3)))
     .map((b) => b.toString(16).padStart(2, "0"))

@@ -34,9 +34,14 @@ interface UseDuelSessionResult {
   opponentProgress: OpponentProgress | null;
   result: DuelResult | null;
   role: "host" | "guest" | null;
+  rematchRequestedBy: string | null;
+  rematchDeclined: boolean;
+  rematchPending: boolean;
   createRoom: (username: string) => void;
   joinRoom: (username: string, roomId: string) => void;
   sendWord: (typed: string, wordIndex: number) => void;
+  sendRematchRequest: () => void;
+  sendRematchResponse: (accept: boolean) => void;
   reset: () => void;
 }
 
@@ -51,6 +56,9 @@ export function useDuelSession(): UseDuelSessionResult {
   const [opponentProgress, setOpponentProgress] = useState<OpponentProgress | null>(null);
   const [result, setResult] = useState<DuelResult | null>(null);
   const [role, setRole] = useState<"host" | "guest" | null>(null);
+  const [rematchRequestedBy, setRematchRequestedBy] = useState<string | null>(null);
+  const [rematchDeclined, setRematchDeclined] = useState(false);
+  const [rematchPending, setRematchPending] = useState(false);
 
   const wsRef = useRef<WebSocket | null>(null);
 
@@ -72,6 +80,9 @@ export function useDuelSession(): UseDuelSessionResult {
     setOpponentProgress(null);
     setResult(null);
     setRole(null);
+    setRematchRequestedBy(null);
+    setRematchDeclined(false);
+    setRematchPending(false);
   }, [closeWs]);
 
   const openSocket = useCallback(
@@ -100,6 +111,11 @@ export function useDuelSession(): UseDuelSessionResult {
             setWords(msg.words as string[]);
             setOpponentName(msg.opponent as string);
             setTimeLeft(DUEL_DURATION);
+            setResult(null);
+            setOpponentProgress(null);
+            setRematchRequestedBy(null);
+            setRematchDeclined(false);
+            setRematchPending(false);
             setPhase("countdown");
           } else if (msg.type === "go") {
             setPhase("running");
@@ -127,7 +143,13 @@ export function useDuelSession(): UseDuelSessionResult {
           } else if (msg.type === "opponent_disconnected") {
             setOpponentProgress(null);
             setOpponentName((n) => (n ? `${n} (left)` : null));
-            // If still running, let the game finish naturally
+          } else if (msg.type === "rematch_request") {
+            setRematchRequestedBy(msg.from as string);
+          } else if (msg.type === "rematch_declined") {
+            setRematchPending(false);
+            setRematchRequestedBy(null);
+            setRematchDeclined(true);
+            setTimeout(() => setRematchDeclined(false), 3000);
           } else if (msg.type === "error") {
             console.error("Duel error:", msg.message);
             setPhase("idle");
@@ -149,7 +171,6 @@ export function useDuelSession(): UseDuelSessionResult {
   const createRoom = useCallback(
     async (username: string) => {
       setPhase("creating");
-      // Ask the worker for a new room ID
       const res = await fetch("/api/duel/room");
       const { roomId: newRoomId } = (await res.json()) as { roomId: string };
       setRoomId(newRoomId);
@@ -177,6 +198,16 @@ export function useDuelSession(): UseDuelSessionResult {
     wsRef.current?.send(JSON.stringify({ type: "word", typed, wordIndex }));
   }, []);
 
+  const sendRematchRequest = useCallback(() => {
+    setRematchPending(true);
+    wsRef.current?.send(JSON.stringify({ type: "rematch_request" }));
+  }, []);
+
+  const sendRematchResponse = useCallback((accept: boolean) => {
+    setRematchRequestedBy(null);
+    wsRef.current?.send(JSON.stringify({ type: "rematch_response", accept }));
+  }, []);
+
   useEffect(() => {
     return () => closeWs();
   }, [closeWs]);
@@ -190,9 +221,14 @@ export function useDuelSession(): UseDuelSessionResult {
     opponentProgress,
     result,
     role,
+    rematchRequestedBy,
+    rematchDeclined,
+    rematchPending,
     createRoom,
     joinRoom,
     sendWord,
+    sendRematchRequest,
+    sendRematchResponse,
     reset,
   };
 }

@@ -164,9 +164,14 @@ export default function DuelPage({ username }: DuelPageProps) {
     opponentName,
     opponentProgress,
     result,
+    rematchRequestedBy,
+    rematchDeclined,
+    rematchPending,
     createRoom,
     joinRoom,
     sendWord,
+    sendRematchRequest,
+    sendRematchResponse,
     reset,
   } = useDuelSession();
 
@@ -329,9 +334,36 @@ export default function DuelPage({ username }: DuelPageProps) {
     const isWinner = result.winner === username;
     const isTie = result.winner === null && result.opponent !== null;
     const soloGame = !result.opponent;
+    const opponentLeft = opponentName?.endsWith("(left)") ?? false;
 
     return (
       <main className="flex flex-col items-center justify-center px-4 py-12" style={{ minHeight: "calc(100vh - 74px)" }}>
+
+        {/* Incoming rematch request modal */}
+        {rematchRequestedBy && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+            <div className="bg-white rounded-2xl shadow-2xl p-8 flex flex-col items-center gap-6 max-w-sm w-full mx-4">
+              <div className="text-lg font-bold text-[#0D0D0D] text-center">
+                <span className="font-extrabold">{rematchRequestedBy}</span> mengajak bermain lagi!
+              </div>
+              <div className="flex gap-3 w-full">
+                <button
+                  onClick={() => sendRematchResponse(true)}
+                  className="flex-1 bg-[#1A1A1A] text-white py-3 rounded-xl font-bold text-sm hover:bg-[#333] transition-all active:scale-95"
+                >
+                  Ya, main lagi!
+                </button>
+                <button
+                  onClick={() => sendRematchResponse(false)}
+                  className="flex-1 border border-[#0D0D0D]/20 text-[#333] py-3 rounded-xl font-bold text-sm hover:bg-[#EDE8DC] transition-all active:scale-95"
+                >
+                  Tidak
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         <div className="flex flex-col items-center gap-8 w-full max-w-2xl">
           {!soloGame && (
             <div className={`px-6 py-3 rounded-2xl text-center font-extrabold text-xl tracking-tight ${
@@ -381,16 +413,43 @@ export default function DuelPage({ username }: DuelPageProps) {
             )}
           </div>
 
-          <button
-            onClick={handleReset}
-            className="flex items-center gap-2 bg-[#1A1A1A] text-white px-8 py-3 rounded-xl font-semibold text-sm tracking-tight hover:bg-[#333] transition-all duration-200 active:scale-95"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
-              <path d="M3 3v5h5" />
-            </svg>
-            Play Again
-          </button>
+          {/* Rematch declined notice */}
+          {rematchDeclined && (
+            <div className="text-sm font-medium text-red-500 animate-pulse">
+              Lawan menolak rematch.
+            </div>
+          )}
+
+          <div className="flex gap-3">
+            {!soloGame && (
+              <button
+                onClick={sendRematchRequest}
+                disabled={opponentLeft || rematchPending}
+                className="flex items-center gap-2 bg-[#1A1A1A] text-white px-7 py-3 rounded-xl font-semibold text-sm tracking-tight hover:bg-[#333] transition-all duration-200 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {rematchPending ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Menunggu…
+                  </>
+                ) : (
+                  <>
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8" />
+                      <path d="M3 3v5h5" />
+                    </svg>
+                    Bermain Lagi
+                  </>
+                )}
+              </button>
+            )}
+            <button
+              onClick={handleReset}
+              className="flex items-center gap-2 border border-[#0D0D0D]/20 text-[#333] px-7 py-3 rounded-xl font-semibold text-sm tracking-tight hover:bg-[#EDE8DC] transition-all duration-200 active:scale-95"
+            >
+              Keluar
+            </button>
+          </div>
         </div>
       </main>
     );
